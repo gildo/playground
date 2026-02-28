@@ -501,7 +501,14 @@
             try {
                 log('Scanning for BLE devices...');
                 bleDevice = await navigator.bluetooth.requestDevice({
-                    acceptAllDevices: true,
+                    filters: [
+                        { services: [HID_SERVICE] },
+                        { services: [UART_SERVICE] },
+                        { services: ['battery_service'] },
+                        { services: ['generic_access'] },
+                        { namePrefix: 'Kobo' },
+                        { namePrefix: 'kobo' },
+                    ],
                     optionalServices: [
                         HID_SERVICE,
                         UART_SERVICE,
