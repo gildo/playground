@@ -500,34 +500,37 @@
 
             try {
                 log('Scanning for BLE devices...');
-                // Try acceptAllDevices first (Chrome), fall back to filters (Bluefy)
-                let requestOptions;
-                try {
-                    bleDevice = await navigator.bluetooth.requestDevice({
+                // Bluefy on iOS is strict about requestDevice format.
+                // Try multiple approaches from simplest to most featured.
+                const approaches = [
+                    // 1. acceptAllDevices (works on Chrome desktop/Android)
+                    {
                         acceptAllDevices: true,
-                        optionalServices: [
-                            HID_SERVICE,
-                            UART_SERVICE,
-                            'battery_service',
-                            'device_information',
-                            'generic_access',
-                        ]
-                    });
-                } catch (firstErr) {
-                    log('Trying filtered scan...', 'info');
-                    bleDevice = await navigator.bluetooth.requestDevice({
-                        filters: [
-                            { namePrefix: '' },
-                        ],
-                        optionalServices: [
-                            HID_SERVICE,
-                            UART_SERVICE,
-                            'battery_service',
-                            'device_information',
-                            'generic_access',
-                        ]
-                    });
+                        optionalServices: [0x1812, 0x180F, 0x180A, 0x1800],
+                    },
+                    // 2. Simple name filter (Bluefy-friendly)
+                    {
+                        filters: [{ namePrefix: 'Kobo' }],
+                    },
+                    // 3. Bare minimum
+                    {
+                        acceptAllDevices: true,
+                    },
+                ];
+
+                let lastErr;
+                for (const opts of approaches) {
+                    try {
+                        log(`Scan attempt: ${JSON.stringify(Object.keys(opts))}`, 'info');
+                        bleDevice = await navigator.bluetooth.requestDevice(opts);
+                        break;
+                    } catch (e) {
+                        lastErr = e;
+                        log(`Attempt failed: ${e.message || e.name || e.code || String(e)}`, 'warn');
+                        bleDevice = null;
+                    }
                 }
+                if (!bleDevice) throw lastErr;
 
                 const name = bleDevice.name || 'Unknown Device';
                 log(`Selected: ${name}`, 'success');
