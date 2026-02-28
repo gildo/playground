@@ -500,23 +500,34 @@
 
             try {
                 log('Scanning for BLE devices...');
-                bleDevice = await navigator.bluetooth.requestDevice({
-                    filters: [
-                        { services: [HID_SERVICE] },
-                        { services: [UART_SERVICE] },
-                        { services: ['battery_service'] },
-                        { services: ['generic_access'] },
-                        { namePrefix: 'Kobo' },
-                        { namePrefix: 'kobo' },
-                    ],
-                    optionalServices: [
-                        HID_SERVICE,
-                        UART_SERVICE,
-                        'battery_service',
-                        'device_information',
-                        'generic_access',
-                    ]
-                });
+                // Try acceptAllDevices first (Chrome), fall back to filters (Bluefy)
+                let requestOptions;
+                try {
+                    bleDevice = await navigator.bluetooth.requestDevice({
+                        acceptAllDevices: true,
+                        optionalServices: [
+                            HID_SERVICE,
+                            UART_SERVICE,
+                            'battery_service',
+                            'device_information',
+                            'generic_access',
+                        ]
+                    });
+                } catch (firstErr) {
+                    log('Trying filtered scan...', 'info');
+                    bleDevice = await navigator.bluetooth.requestDevice({
+                        filters: [
+                            { namePrefix: '' },
+                        ],
+                        optionalServices: [
+                            HID_SERVICE,
+                            UART_SERVICE,
+                            'battery_service',
+                            'device_information',
+                            'generic_access',
+                        ]
+                    });
+                }
 
                 const name = bleDevice.name || 'Unknown Device';
                 log(`Selected: ${name}`, 'success');
@@ -534,7 +545,7 @@
                 if (err.name === 'NotFoundError') {
                     log('No device selected', 'warn');
                 } else {
-                    log(`Connection error: ${err.message}`, 'error');
+                    log(`Connection error: ${err.message || err.name || String(err)}`, 'error');
                 }
             }
         }
